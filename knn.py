@@ -23,9 +23,16 @@ def main():
     correct_images = 0
     for image, label in images_in_dir(args.test_data):
         total_images += 1
-        if ''.join(map(str, classify_image(training_data, image))) == label:
+        if classify_image(training_data, image) == label:
             correct_images += 1
     print('Got %d/%d' % (correct_images, total_images))
+
+    print('Auto-renaming images...')
+    for image, name in images_in_dir(args.auto_data, full_name=True):
+        out_name = classify_image(training_data, image) + '.jpg'
+        print('%s -> %s' % (name, out_name))
+        os.rename(os.path.join(args.auto_data, name),
+                  os.path.join(args.auto_data, out_name))
 
 
 def load_data(data_dir):
@@ -58,8 +65,7 @@ def classify_image(training_data, image, num_neighbors=3):
       num_neighbors: "k" in k-nearest neighbors.
 
     Returns:
-      An array of integers, where each integer is a digit
-        in the captcha.
+      A string of captcha text.
     """
     images, labels = training_data
     images = images.astype('float') / 255
@@ -72,21 +78,22 @@ def classify_image(training_data, image, num_neighbors=3):
         neighbor_labels = labels[np.argsort(distances)][:num_neighbors]
         majority = sorted(Counter(neighbor_labels).items(), key=lambda x: x[1])[-1][0]
         result.append(majority)
-    return np.array(result)
+    return ''.join(map(str, result))
 
 
-def images_in_dir(data_dir):
+def images_in_dir(data_dir, full_name=False):
     for file in os.listdir(data_dir):
         if not file.endswith('.jpg'):
             continue
         img = np.array(Image.open(os.path.join(data_dir, file)))
-        yield img, file[:CAPTCHA_LENGTH]
+        yield img, (file if full_name else file[:CAPTCHA_LENGTH])
 
 
 def arg_parser():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--data', help='training images', default='data/train')
     parser.add_argument('--test-data', help='testing images', default='data/test')
+    parser.add_argument('--auto-data', help='images to rename with labels', default='data/auto')
     return parser
 
 
